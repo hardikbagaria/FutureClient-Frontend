@@ -1,58 +1,63 @@
-// Enums
-export enum UnitType {
-    LITER = 'LITER',
-    KILOGRAM = 'KILOGRAM',
-    PIECE = 'PIECE',
-    METER = 'METER'
-}
+// Const objects replacing enums (compatible with erasableSyntaxOnly)
+export const UnitType = {
+    LITER: 'LITER',
+    KILOGRAM: 'KILOGRAM',
+    PIECE: 'PIECE',
+    METER: 'METER',
+} as const;
+export type UnitType = typeof UnitType[keyof typeof UnitType];
 
-export enum PaymentMode {
-    CASH = 'CASH',
-    CHEQUE = 'CHEQUE',
-    UPI = 'UPI',
-    NEFT = 'NEFT',
-    RTGS = 'RTGS',
-    CREDIT = 'CREDIT'
-}
+export const PaymentMode = {
+    CASH: 'CASH',
+    CHEQUE: 'CHEQUE',
+    UPI: 'UPI',
+    NEFT: 'NEFT',
+    RTGS: 'RTGS',
+    CREDIT: 'CREDIT',
+} as const;
+export type PaymentMode = typeof PaymentMode[keyof typeof PaymentMode];
 
-export enum AddressType {
-    BILLING = 'BILLING',
-    SHIPPING = 'SHIPPING'
-}
+export const AddressType = {
+    BILLING: 'BILLING',
+    SHIPPING: 'SHIPPING',
+} as const;
+export type AddressType = typeof AddressType[keyof typeof AddressType];
 
-export enum State {
-    ANDHRA_PRADESH = 'ANDHRA_PRADESH',
-    ARUNACHAL_PRADESH = 'ARUNACHAL_PRADESH',
-    ASSAM = 'ASSAM',
-    BIHAR = 'BIHAR',
-    CHHATTISGARH = 'CHHATTISGARH',
-    GOA = 'GOA',
-    GUJARAT = 'GUJARAT',
-    HARYANA = 'HARYANA',
-    HIMACHAL_PRADESH = 'HIMACHAL_PRADESH',
-    JHARKHAND = 'JHARKHAND',
-    KARNATAKA = 'KARNATAKA',
-    KERALA = 'KERALA',
-    MADHYA_PRADESH = 'MADHYA_PRADESH',
-    MAHARASHTRA = 'MAHARASHTRA',
-    MANIPUR = 'MANIPUR',
-    MEGHALAYA = 'MEGHALAYA',
-    MIZORAM = 'MIZORAM',
-    NAGALAND = 'NAGALAND',
-    ODISHA = 'ODISHA',
-    PUNJAB = 'PUNJAB',
-    RAJASTHAN = 'RAJASTHAN',
-    SIKKIM = 'SIKKIM',
-    TAMIL_NADU = 'TAMIL_NADU',
-    TELANGANA = 'TELANGANA',
-    TRIPURA = 'TRIPURA',
-    UTTAR_PRADESH = 'UTTAR_PRADESH',
-    UTTARAKHAND = 'UTTARAKHAND',
-    WEST_BENGAL = 'WEST_BENGAL',
-    DELHI = 'DELHI',
-    JAMMU_AND_KASHMIR = 'JAMMU_AND_KASHMIR',
-    LADAKH = 'LADAKH'
-}
+export const State = {
+    ANDHRA_PRADESH: 'ANDHRA_PRADESH',
+    ARUNACHAL_PRADESH: 'ARUNACHAL_PRADESH',
+    ASSAM: 'ASSAM',
+    BIHAR: 'BIHAR',
+    CHHATTISGARH: 'CHHATTISGARH',
+    GOA: 'GOA',
+    GUJARAT: 'GUJARAT',
+    HARYANA: 'HARYANA',
+    HIMACHAL_PRADESH: 'HIMACHAL_PRADESH',
+    JHARKHAND: 'JHARKHAND',
+    KARNATAKA: 'KARNATAKA',
+    KERALA: 'KERALA',
+    MADHYA_PRADESH: 'MADHYA_PRADESH',
+    MAHARASHTRA: 'MAHARASHTRA',
+    MANIPUR: 'MANIPUR',
+    MEGHALAYA: 'MEGHALAYA',
+    MIZORAM: 'MIZORAM',
+    NAGALAND: 'NAGALAND',
+    ODISHA: 'ODISHA',
+    PUNJAB: 'PUNJAB',
+    RAJASTHAN: 'RAJASTHAN',
+    SIKKIM: 'SIKKIM',
+    TAMIL_NADU: 'TAMIL_NADU',
+    TELANGANA: 'TELANGANA',
+    TRIPURA: 'TRIPURA',
+    UTTAR_PRADESH: 'UTTAR_PRADESH',
+    UTTARAKHAND: 'UTTARAKHAND',
+    WEST_BENGAL: 'WEST_BENGAL',
+    DELHI: 'DELHI',
+    JAMMU_AND_KASHMIR: 'JAMMU_AND_KASHMIR',
+    LADAKH: 'LADAKH',
+} as const;
+export type State = typeof State[keyof typeof State];
+
 
 // Item Interfaces
 export interface ItemRequest {
@@ -110,7 +115,8 @@ export interface PurchaseBillResponse {
     billDate: string;
     amount: number;
     gst: number;
-    total: number;
+    roundOff: number;
+    total: number;   // grand total — always a whole number
     party: {
         id: number;
         name: string;
@@ -139,12 +145,6 @@ export interface PurchasePaymentResponse {
     modeOfPayment: string;
     transactionReference: string | null;
     remarks: string | null;
-    allocations: {
-        billId: number;
-        billNumber: string;
-        amountAllocated: number;
-    }[];
-    partyOutstandingAfterPayment: number;
 }
 
 // Sales Address Interface
@@ -156,7 +156,6 @@ export interface SalesAddress {
     city: string;
     state: State;
     pincode: string;
-    addressType: AddressType;
 }
 
 // Sales Party Interfaces
@@ -180,7 +179,6 @@ export interface SalesPartyResponse {
         city: string;
         state: string;
         pincode: string;
-        addressType: string;
     }[];
 }
 
@@ -201,9 +199,38 @@ export interface SalesBillItemResponse {
     amount: number;
 }
 
+// ── Calculate Preview Types ───────────────────────────────────────────────────
+
+export interface SalesCalculateRequest {
+    items: { itemId: number; quantity: number; rate: number }[];
+    transportation?: number;
+}
+
+export interface SalesCalculateResponse {
+    totalTaxableAmount: number;
+    gst: number;
+    transportation: number;
+    suggestedRoundOff: number;
+    grandTotal: number;
+}
+
+export interface PurchaseCalculateRequest {
+    items: { description: string; quantity: number; rate: number }[];
+}
+
+export interface PurchaseCalculateResponse {
+    taxableAmount: number;
+    gst: number;
+    total: number;
+    suggestedRoundOff: number;
+    grandTotal: number;
+}
+
 export interface SalesBillRequest {
     billDate: string;
     salesPartyId: number;
+    billingAddressId?: number;
+    shippingAddressId?: number;
     vehicleDetails?: string;
     modeOfPayment?: PaymentMode;
     dueDate?: string;
@@ -211,7 +238,17 @@ export interface SalesBillRequest {
     termsOfDelivery?: string;
     items: SalesBillItem[];
     transportation?: number;
-    roundOff?: number;
+}
+
+// Address shape as returned inside a bill response
+export interface AddressInBillResponse {
+    id: number;
+    shopGalaNumber: string | null;
+    buildingName: string | null;
+    compoundAreaName: string | null;
+    city: string;
+    state: string;
+    pincode: string;
 }
 
 export interface SalesBillResponse {
@@ -229,6 +266,8 @@ export interface SalesBillResponse {
         gst: string;
         phoneNumber: string;
     };
+    billingAddress: AddressInBillResponse | null;
+    shippingAddress: AddressInBillResponse | null;
     vehicleDetails: string | null;
     modeOfPayment: string | null;
     dueDate: string;
@@ -275,43 +314,29 @@ export interface SalesPaymentResponse {
     modeOfPayment: string;
     transactionReference: string | null;
     remarks: string | null;
-    allocations: {
-        billId: number;
-        billNumber: string;
-        amountAllocated: number;
-    }[];
-    partyOutstandingAfterPayment: number;
 }
 
-// Ledger Interfaces
-export interface LedgerTransaction {
-    date: string;
+// ── Ledger DTOs ──────────────────────────────────────────────────────────────
+
+export interface LedgerTransactionDto {
+    date: string;        // LocalDate as ISO string
     type: 'BILL' | 'PAYMENT';
-    reference: string;
+    reference: string;   // Bill number or payment reference
     debit: number;
     credit: number;
     balance: number;
 }
 
-export interface PurchaseLedgerResponse {
+export interface PartyLedgerDto {
     partyId: number;
     partyName: string;
-    transactions: LedgerTransaction[];
+    transactions: LedgerTransactionDto[];
     totalDebit: number;
     totalCredit: number;
     closingBalance: number;
 }
 
-export interface SalesLedgerResponse {
-    partyId: number;
-    partyName: string;
-    transactions: LedgerTransaction[];
-    totalDebit: number;
-    totalCredit: number;
-    closingBalance: number;
-}
-
-export interface LedgerSummary {
+export interface LedgerSummaryDto {
     partyId: number;
     partyName: string;
     totalDebit: number;
@@ -319,8 +344,15 @@ export interface LedgerSummary {
     balance: number;
 }
 
-// Dashboard Interfaces
-export interface DashboardSummary {
+// Legacy aliases kept for backward compat with other pages
+export type LedgerTransaction = LedgerTransactionDto;
+export type PurchaseLedgerResponse = PartyLedgerDto;
+export type SalesLedgerResponse = PartyLedgerDto;
+export type LedgerSummary = LedgerSummaryDto;
+
+// ── Dashboard DTOs ────────────────────────────────────────────────────────────
+
+export interface DashboardSummaryDto {
     totalPurchases: number;
     totalSales: number;
     profit: number;
@@ -329,38 +361,40 @@ export interface DashboardSummary {
     currentMonthGSTLiability: number;
 }
 
-export interface MonthlyTotal {
+/** Legacy alias */
+export type DashboardSummary = DashboardSummaryDto;
+
+export interface MonthlyTotalDto {
     year: number;
     month: number;
     totalAmount: number;
     billCount: number;
 }
 
-export interface YearlyTrend {
+export interface MonthlyDataPoint {
+    month: number;
+    monthName: string;
+    total: number;
+    count: number;
+}
+
+export interface YearlyTrendDto {
     year: number;
-    monthlyData: {
-        month: number;
-        monthName: string;
-        totalAmount: number;
-        billCount: number;
-    }[];
+    monthlyData: MonthlyDataPoint[];
 }
 
-export interface TopVendor {
+export interface TopPartyDto {
     partyId: number;
     partyName: string;
     totalAmount: number;
-    transactionCount: number;
+    billCount: number;
 }
 
-export interface TopCustomer {
-    partyId: number;
-    partyName: string;
-    totalAmount: number;
-    transactionCount: number;
-}
+/** Legacy aliases */
+export type TopVendor = TopPartyDto;
+export type TopCustomer = TopPartyDto;
 
-export interface PendingPayment {
+export interface PendingPaymentDto {
     billId: number;
     billNumber: string;
     partyId: number;
@@ -370,20 +404,18 @@ export interface PendingPayment {
     pendingAmount: number;
 }
 
-export interface PendingCollection {
-    billId: number;
-    billNumber: string;
-    partyId: number;
-    partyName: string;
-    totalAmount: number;
-    paidAmount: number;
-    pendingAmount: number;
-}
+/** Legacy aliases */
+export type PendingPayment = PendingPaymentDto;
+export type PendingCollection = PendingPaymentDto;
 
-// GST Report Interfaces
-export interface GSTReport {
+// ── GST DTO ───────────────────────────────────────────────────────────────────
+
+export interface GSTLiabilityDto {
     purchaseGST: number;
     salesGST: number;
     netGST: number;
     status: 'PAYABLE' | 'REFUNDABLE';
 }
+
+/** Legacy alias */
+export type GSTReport = GSTLiabilityDto;

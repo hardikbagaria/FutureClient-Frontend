@@ -1,26 +1,74 @@
-import { useState } from 'react';
-import { Table, Button, Modal, Form, Input, Space, message, Popconfirm, Select, Collapse } from 'antd';
+import { Table, Button, Modal, Form, Input, Space, message, Popconfirm, Select, Collapse, Spin, Alert } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
 import PageHeader from '@/components/PageHeader';
-import { mockSalesParties } from '@/utils/mockData';
-import type { SalesPartyResponse } from '@/types';
-import { AddressType, State } from '@/types';
+import { getSalesParties, createSalesParty, updateSalesParty, deleteSalesParty } from '@/api/salesParties';
+import type { SalesPartyResponse, SalesPartyRequest } from '@/types';
+import { State } from '@/types';
 import { STATE_LABELS } from '@/utils/constants';
+import { validateGST, validatePhone, validatePincode } from '@/utils/validators';
 import type { ColumnsType } from 'antd/es/table';
 
 const { Panel } = Collapse;
 
 const SalesParties = () => {
-    const [parties, setParties] = useState<SalesPartyResponse[]>(mockSalesParties);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingParty, setEditingParty] = useState<SalesPartyResponse | null>(null);
     const [form] = Form.useForm();
+    const queryClient = useQueryClient();
+
+    // Fetch sales parties
+    const { data: parties = [], isLoading, error } = useQuery({
+        queryKey: ['salesParties'],
+        queryFn: getSalesParties,
+    });
+
+    // Create mutation
+    const createMutation = useMutation({
+        mutationFn: createSalesParty,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['salesParties'] });
+            message.success('Sales party created successfully');
+            setIsModalOpen(false);
+            form.resetFields();
+        },
+        onError: (error: any) => {
+            message.error(error.response?.data?.message || 'Failed to create sales party');
+        },
+    });
+
+    // Update mutation
+    const updateMutation = useMutation({
+        mutationFn: ({ id, data }: { id: number; data: SalesPartyRequest }) => updateSalesParty(id, data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['salesParties'] });
+            message.success('Sales party updated successfully');
+            setIsModalOpen(false);
+            form.resetFields();
+        },
+        onError: (error: any) => {
+            message.error(error.response?.data?.message || 'Failed to update sales party');
+        },
+    });
+
+    // Delete mutation
+    const deleteMutation = useMutation({
+        mutationFn: deleteSalesParty,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['salesParties'] });
+            message.success('Sales party deleted successfully');
+        },
+        onError: (error: any) => {
+            message.error(error.response?.data?.message || 'Failed to delete sales party');
+        },
+    });
 
     const handleAdd = () => {
         setEditingParty(null);
         form.resetFields();
         form.setFieldsValue({
-            addresses: [{ addressType: AddressType.BILLING }]
+            addresses: [{}]
         });
         setIsModalOpen(true);
     };
@@ -32,45 +80,34 @@ const SalesParties = () => {
     };
 
     const handleDelete = (id: number) => {
-        setParties(parties.filter((party) => party.id !== id));
-        message.success('Party deleted successfully');
+        deleteMutation.mutate(id);
     };
 
     const handleOk = async () => {
         try {
             const values = await form.validateFields();
+            const partyData: SalesPartyRequest = {
+                name: values.name,
+                gst: values.gst,
+                phoneNumber: values.phoneNumber,
+                addresses: values.addresses.map((addr: any) => ({
+                    shopGalaNumber: addr.shopGalaNumber || null,
+                    buildingName: addr.buildingName || null,
+                    compoundAreaName: addr.compoundAreaName || null,
+                    city: addr.city,
+                    state: addr.state,
+                    pincode: addr.pincode
+                }))
+            };
 
             if (editingParty) {
-                setParties(parties.map((party) =>
-                    party.id === editingParty.id ? { ...party, ...values } : party
-                ));
-                message.success('Party updated successfully');
+                updateMutation.mutate({ id: editingParty.id, data: partyData });
             } else {
-                const newParty: SalesPartyResponse = {
-                    id: Math.max(...parties.map(p => p.id)) + 1,
-                    ...values,
-                    addresses: values.addresses.map((addr: any, idx: number) => ({
-                        id: idx + 1,
-                        ...addr,
-                        shopGalaNumber: addr.shopGalaNumber || null,
-                        buildingName: addr.buildingName || null,
-                        compoundAreaName: addr.compoundAreaName || null,
-                    }))
-                };
-                setParties([...parties, newParty]);
-                message.success('Party created successfully');
+                createMutation.mutate(partyData);
             }
-
-            setIsModalOpen(false);
-            form.resetFields();
         } catch (error) {
             console.error('Validation failed:', error);
         }
-    };
-
-    const handleCancel = () => {
-        setIsModalOpen(false);
-        form.resetFields();
     };
 
     const columns: ColumnsType<SalesPartyResponse> = [
@@ -78,13 +115,6 @@ const SalesParties = () => {
         { title: 'Name', dataIndex: 'name', key: 'name' },
         { title: 'GST', dataIndex: 'gst', key: 'gst', width: 200 },
         { title: 'Phone Number', dataIndex: 'phoneNumber', key: 'phoneNumber', width: 150 },
-        {
-            title: 'Addresses',
-            key: 'addressCount',
-            width: 100,
-            align: 'center',
-            render: (_: any, record: SalesPartyResponse) => record.addresses.length
-        },
         {
             title: 'Actions',
             key: 'actions',
@@ -112,17 +142,20 @@ const SalesParties = () => {
 
     const expandedRowRender = (record: SalesPartyResponse) => {
         const addressColumns: ColumnsType<typeof record.addresses[0]> = [
-            { title: 'Type', dataIndex: 'addressType', key: 'addressType', width: 100 },
             {
                 title: 'Address',
                 key: 'fullAddress',
                 render: (_: any, addr: any) => {
-                    const parts = [addr.shopGalaNumber, addr.buildingName, addr.compoundAreaName].filter(Boolean);
+                    const parts = [
+                        addr.shopGalaNumber,
+                        addr.buildingName,
+                        addr.compoundAreaName,
+                        addr.city
+                    ].filter(Boolean);
                     return parts.join(', ');
                 }
             },
-            { title: 'City', dataIndex: 'city', key: 'city', width: 120 },
-            { title: 'State', dataIndex: 'state', key: 'state', width: 150 },
+            { title: 'State', dataIndex: 'state', key: 'state', width: 120, render: (state: string) => STATE_LABELS[state as State] },
             { title: 'Pincode', dataIndex: 'pincode', key: 'pincode', width: 100 },
         ];
 
@@ -140,6 +173,29 @@ const SalesParties = () => {
         );
     };
 
+    if (error) {
+        return (
+            <div>
+                <PageHeader title="Sales Parties" />
+                <div style={{ textAlign: 'center', padding: '50px' }}>
+                    <Alert
+                        message="Error Loading Sales Parties"
+                        description={error instanceof Error ? error.message : 'Failed to load sales parties. Please ensure the backend is running.'}
+                        type="error"
+                        showIcon
+                    />
+                    <Button
+                        type="primary"
+                        style={{ marginTop: 16 }}
+                        onClick={() => queryClient.invalidateQueries({ queryKey: ['salesParties'] })}
+                    >
+                        Retry
+                    </Button>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div>
             <PageHeader
@@ -151,23 +207,23 @@ const SalesParties = () => {
                 }
             />
 
-            <Table
-                dataSource={parties}
-                columns={columns}
-                rowKey="id"
-                expandable={{
-                    expandedRowRender,
-                    rowExpandable: (record) => record.addresses.length > 0
-                }}
-                pagination={{ pageSize: 10, showTotal: (total) => `Total ${total} parties` }}
-            />
+            <Spin spinning={isLoading}>
+                <Table
+                    dataSource={parties}
+                    columns={columns}
+                    rowKey="id"
+                    expandable={{ expandedRowRender }}
+                    pagination={{ pageSize: 10, showTotal: (total) => `Total ${total} parties` }}
+                />
+            </Spin>
 
             <Modal
-                title={editingParty ? 'Edit Party' : 'Add New Party'}
+                title={editingParty ? 'Edit Sales Party' : 'Add New Sales Party'}
                 open={isModalOpen}
                 onOk={handleOk}
-                onCancel={handleCancel}
+                onCancel={() => setIsModalOpen(false)}
                 width={800}
+                confirmLoading={createMutation.isPending || updateMutation.isPending}
             >
                 <Form form={form} layout="vertical" style={{ marginTop: 24 }}>
                     <Form.Item
@@ -182,25 +238,19 @@ const SalesParties = () => {
                         <Form.Item
                             name="gst"
                             label="GST Number"
-                            rules={[
-                                { required: true, message: 'Please enter GST number' },
-                                { len: 15, message: 'GST number must be 15 characters' }
-                            ]}
+                            rules={validateGST()}
                             style={{ flex: 1 }}
                         >
-                            <Input placeholder="Enter GST number" maxLength={15} />
+                            <Input placeholder="Enter GST number (15 characters)" maxLength={15} />
                         </Form.Item>
 
                         <Form.Item
                             name="phoneNumber"
                             label="Phone Number"
-                            rules={[
-                                { required: true, message: 'Please enter phone number' },
-                                { pattern: /^[0-9]{10}$/, message: 'Please enter valid 10-digit phone number' }
-                            ]}
+                            rules={validatePhone()}
                             style={{ flex: 1 }}
                         >
-                            <Input placeholder="Enter phone number" maxLength={10} />
+                            <Input placeholder="Enter phone number (10 digits)" maxLength={10} />
                         </Form.Item>
                     </Space>
 
@@ -208,94 +258,95 @@ const SalesParties = () => {
                     <Form.List name="addresses">
                         {(fields, { add, remove }) => (
                             <>
-                                <Collapse>
+                                <Collapse defaultActiveKey={[0]}>
                                     {fields.map((field, index) => (
-                                        <Panel header={`Address ${index + 1}`} key={field.key}>
-                                            <Form.Item
-                                                {...field}
-                                                name={[field.name, 'addressType']}
-                                                label="Address Type"
-                                                rules={[{ required: true, message: 'Required' }]}
-                                            >
-                                                <Select placeholder="Select type">
-                                                    <Select.Option value={AddressType.BILLING}>Billing</Select.Option>
-                                                    <Select.Option value={AddressType.SHIPPING}>Shipping</Select.Option>
-                                                </Select>
-                                            </Form.Item>
-
+                                        <Panel
+                                            header={`Address ${index + 1}`}
+                                            key={field.key}
+                                            extra={fields.length > 1 && (
+                                                <Button
+                                                    type="link"
+                                                    danger
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        remove(field.name);
+                                                    }}
+                                                >
+                                                    Remove
+                                                </Button>
+                                            )}
+                                        >
                                             <Form.Item
                                                 {...field}
                                                 name={[field.name, 'shopGalaNumber']}
-                                                label="Shop/Gala Number (Optional)"
+                                                label="Shop/Gala Number"
                                             >
-                                                <Input placeholder="Enter shop/gala number" />
+                                                <Input placeholder="Shop/Gala No." />
                                             </Form.Item>
 
-                                            <Form.Item
-                                                {...field}
-                                                name={[field.name, 'buildingName']}
-                                                label="Building Name (Optional)"
-                                            >
-                                                <Input placeholder="Enter building name" />
-                                            </Form.Item>
+                                            <Space style={{ width: '100%' }} size="large">
+                                                <Form.Item
+                                                    {...field}
+                                                    name={[field.name, 'buildingName']}
+                                                    label="Building Name"
+                                                    rules={[{ required: true, message: 'Enter building name' }]}
+                                                    style={{ flex: 1 }}
+                                                >
+                                                    <Input placeholder="Building Name" />
+                                                </Form.Item>
 
-                                            <Form.Item
-                                                {...field}
-                                                name={[field.name, 'compoundAreaName']}
-                                                label="Compound/Area Name (Optional)"
-                                            >
-                                                <Input placeholder="Enter compound/area name" />
-                                            </Form.Item>
+                                                <Form.Item
+                                                    {...field}
+                                                    name={[field.name, 'compoundAreaName']}
+                                                    label="Compound / Area Name"
+                                                    rules={[{ required: true, message: 'Enter compound / area name' }]}
+                                                    style={{ flex: 1 }}
+                                                >
+                                                    <Input placeholder="Compound / Area Name" />
+                                                </Form.Item>
+                                            </Space>
 
-                                            <Space style={{ width: '100%' }}>
+                                            <Space style={{ width: '100%' }} size="large">
                                                 <Form.Item
                                                     {...field}
                                                     name={[field.name, 'city']}
                                                     label="City"
-                                                    rules={[{ required: true, message: 'Required' }]}
+                                                    rules={[{ required: true, message: 'Enter city' }]}
                                                     style={{ flex: 1 }}
                                                 >
-                                                    <Input placeholder="Enter city" />
+                                                    <Input placeholder="City" />
+                                                </Form.Item>
+
+                                                <Form.Item
+                                                    {...field}
+                                                    name={[field.name, 'state']}
+                                                    label="State"
+                                                    rules={[{ required: true, message: 'Select state' }]}
+                                                    style={{ flex: 1 }}
+                                                >
+                                                    <Select placeholder="Select state" showSearch>
+                                                        {Object.entries(STATE_LABELS).map(([value, label]) => (
+                                                            <Select.Option key={value} value={value}>
+                                                                {label}
+                                                            </Select.Option>
+                                                        ))}
+                                                    </Select>
                                                 </Form.Item>
 
                                                 <Form.Item
                                                     {...field}
                                                     name={[field.name, 'pincode']}
                                                     label="Pincode"
-                                                    rules={[
-                                                        { required: true, message: 'Required' },
-                                                        { pattern: /^[0-9]{6}$/, message: 'Enter valid 6-digit pincode' }
-                                                    ]}
+                                                    rules={validatePincode()}
                                                     style={{ flex: 1 }}
                                                 >
-                                                    <Input placeholder="Enter pincode" maxLength={6} />
+                                                    <Input placeholder="Pincode (6 digits)" maxLength={6} />
                                                 </Form.Item>
                                             </Space>
-
-                                            <Form.Item
-                                                {...field}
-                                                name={[field.name, 'state']}
-                                                label="State"
-                                                rules={[{ required: true, message: 'Required' }]}
-                                            >
-                                                <Select placeholder="Select state" showSearch>
-                                                    {Object.entries(STATE_LABELS).map(([value, label]) => (
-                                                        <Select.Option key={value} value={value}>
-                                                            {label}
-                                                        </Select.Option>
-                                                    ))}
-                                                </Select>
-                                            </Form.Item>
-
-                                            {fields.length > 1 && (
-                                                <Button type="dashed" danger onClick={() => remove(field.name)} block>
-                                                    Remove Address
-                                                </Button>
-                                            )}
                                         </Panel>
                                     ))}
                                 </Collapse>
-                                <Button type="dashed" onClick={() => add()} block style={{ marginTop: 12 }}>
+                                <Button type="dashed" onClick={() => add({})} block style={{ marginTop: 12 }}>
                                     + Add Address
                                 </Button>
                             </>

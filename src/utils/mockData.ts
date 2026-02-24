@@ -108,10 +108,6 @@ export const mockPurchasePayments: PurchasePaymentResponse[] = [
         modeOfPayment: 'UPI',
         transactionReference: 'UPI/123456789',
         remarks: 'Full payment',
-        allocations: [
-            { billId: 1, billNumber: 'PB-2024-001', amountAllocated: 5900 }
-        ],
-        partyOutstandingAfterPayment: 0
     },
     {
         id: 2,
@@ -122,10 +118,6 @@ export const mockPurchasePayments: PurchasePaymentResponse[] = [
         modeOfPayment: 'NEFT',
         transactionReference: 'NEFT/987654321',
         remarks: 'Partial payment',
-        allocations: [
-            { billId: 2, billNumber: 'PB-2024-002', amountAllocated: 5000 }
-        ],
-        partyOutstandingAfterPayment: 4440
     },
 ];
 
@@ -276,10 +268,6 @@ export const mockSalesPayments: SalesPaymentResponse[] = [
         modeOfPayment: 'CHEQUE',
         transactionReference: 'CHQ-789456',
         remarks: 'Full payment received',
-        allocations: [
-            { billId: 1, billNumber: 'SE/2025-26/001', amountAllocated: 12880 }
-        ],
-        partyOutstandingAfterPayment: 0
     },
 ];
 
@@ -295,15 +283,15 @@ export const mockDashboardSummary: DashboardSummary = {
 
 // Mock Top Vendors
 export const mockTopVendors: TopVendor[] = [
-    { partyId: 3, partyName: 'Prime Filters India', totalAmount: 14160, transactionCount: 1 },
-    { partyId: 2, partyName: 'XYZ Auto Parts Ltd', totalAmount: 9440, transactionCount: 1 },
-    { partyId: 1, partyName: 'ABC Oil Suppliers', totalAmount: 5900, transactionCount: 1 },
+    { partyId: 3, partyName: 'Prime Filters India', totalAmount: 14160, billCount: 1 },
+    { partyId: 2, partyName: 'XYZ Auto Parts Ltd', totalAmount: 9440, billCount: 1 },
+    { partyId: 1, partyName: 'ABC Oil Suppliers', totalAmount: 5900, billCount: 1 },
 ];
 
 // Mock Top Customers
 export const mockTopCustomers: TopCustomer[] = [
-    { partyId: 2, partyName: 'Quick Service Garage', totalAmount: 19160, transactionCount: 1 },
-    { partyId: 1, partyName: 'XYZ Motors', totalAmount: 12880, transactionCount: 1 },
+    { partyId: 2, partyName: 'Quick Service Garage', totalAmount: 19160, billCount: 1 },
+    { partyId: 1, partyName: 'XYZ Motors', totalAmount: 12880, billCount: 1 },
 ];
 
 // Mock Pending Payments (Purchase)

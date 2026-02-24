@@ -1,30 +1,50 @@
 import { useState } from 'react';
-import { Card, Select, Table, Typography } from 'antd';
+import { Card, Select, Table, Spin, Alert } from 'antd';
+import { useQuery } from '@tanstack/react-query';
 import PageHeader from '@/components/PageHeader';
-import { mockPurchaseLedger, mockPurchaseLedgerSummary, mockPurchaseParties } from '@/utils/mockData';
-import type { PurchaseLedgerResponse, LedgerSummary } from '@/types';
+import { getPurchasePartyLedger, getPurchaseLedgerSummary } from '@/api/ledger';
+import { getPurchaseParties } from '@/api/purchaseParties';
+import type { LedgerTransactionDto, LedgerSummaryDto } from '@/types';
 import { formatCurrency, formatDate } from '@/utils/formatters';
 import type { ColumnsType } from 'antd/es/table';
-
-const { Title } = Typography;
 
 const PurchaseLedger = () => {
     const [selectedPartyId, setSelectedPartyId] = useState<number | null>(null);
     const [viewMode, setViewMode] = useState<'summary' | 'detail'>('summary');
 
-    const ledgerData: PurchaseLedgerResponse = selectedPartyId
-        ? mockPurchaseLedger
-        : mockPurchaseLedger;
+    // ── Queries ──────────────────────────────────────────────────────────────
+    const { data: parties = [], isLoading: partiesLoading } = useQuery({
+        queryKey: ['purchase', 'parties'],
+        queryFn: getPurchaseParties,
+    });
 
-    const transactionColumns: ColumnsType<typeof ledgerData.transactions[0]> = [
+    const { data: summary = [], isLoading: summaryLoading, error: summaryError } = useQuery({
+        queryKey: ['ledger', 'purchase', 'all'],
+        queryFn: getPurchaseLedgerSummary,
+        enabled: viewMode === 'summary',
+    });
+
+    const { data: partyLedger, isLoading: ledgerLoading, error: ledgerError } = useQuery({
+        queryKey: ['ledger', 'purchase', 'party', selectedPartyId],
+        queryFn: () => getPurchasePartyLedger(selectedPartyId!),
+        enabled: viewMode === 'detail' && selectedPartyId !== null,
+    });
+
+    // ── Table Columns ─────────────────────────────────────────────────────────
+    const transactionColumns: ColumnsType<LedgerTransactionDto> = [
         {
             title: 'Date',
             dataIndex: 'date',
             key: 'date',
             width: 120,
-            render: (date: string) => formatDate(date)
+            render: (date: string) => formatDate(date),
         },
-        { title: 'Type', dataIndex: 'type', key: 'type', width: 100 },
+        {
+            title: 'Type',
+            dataIndex: 'type',
+            key: 'type',
+            width: 100,
+        },
         { title: 'Reference', dataIndex: 'reference', key: 'reference' },
         {
             title: 'Debit',
@@ -32,7 +52,7 @@ const PurchaseLedger = () => {
             key: 'debit',
             width: 130,
             align: 'right',
-            render: (val: number) => val > 0 ? formatCurrency(val) : '-'
+            render: (val: number) => val > 0 ? formatCurrency(val) : '–',
         },
         {
             title: 'Credit',
@@ -40,7 +60,7 @@ const PurchaseLedger = () => {
             key: 'credit',
             width: 130,
             align: 'right',
-            render: (val: number) => val > 0 ? formatCurrency(val) : '-'
+            render: (val: number) => val > 0 ? formatCurrency(val) : '–',
         },
         {
             title: 'Balance',
@@ -52,11 +72,11 @@ const PurchaseLedger = () => {
                 <strong style={{ color: val > 0 ? '#ff4d4f' : '#52c41a' }}>
                     {formatCurrency(val)}
                 </strong>
-            )
+            ),
         },
     ];
 
-    const summaryColumns: ColumnsType<LedgerSummary> = [
+    const summaryColumns: ColumnsType<LedgerSummaryDto> = [
         { title: 'Party Name', dataIndex: 'partyName', key: 'partyName' },
         {
             title: 'Total Debit',
@@ -64,7 +84,7 @@ const PurchaseLedger = () => {
             key: 'totalDebit',
             width: 150,
             align: 'right',
-            render: (val: number) => formatCurrency(val)
+            render: (val: number) => formatCurrency(val),
         },
         {
             title: 'Total Credit',
@@ -72,7 +92,7 @@ const PurchaseLedger = () => {
             key: 'totalCredit',
             width: 150,
             align: 'right',
-            render: (val: number) => formatCurrency(val)
+            render: (val: number) => formatCurrency(val),
         },
         {
             title: 'Balance',
@@ -84,7 +104,7 @@ const PurchaseLedger = () => {
                 <strong style={{ color: val > 0 ? '#ff4d4f' : '#52c41a' }}>
                     {formatCurrency(val)}
                 </strong>
-            )
+            ),
         },
     ];
 
@@ -99,7 +119,7 @@ const PurchaseLedger = () => {
                         <Select
                             style={{ width: '100%' }}
                             value={viewMode}
-                            onChange={setViewMode}
+                            onChange={(v) => { setViewMode(v); setSelectedPartyId(null); }}
                         >
                             <Select.Option value="summary">Summary</Select.Option>
                             <Select.Option value="detail">Party Detail</Select.Option>
@@ -114,8 +134,13 @@ const PurchaseLedger = () => {
                                 placeholder="Select party"
                                 value={selectedPartyId}
                                 onChange={setSelectedPartyId}
+                                loading={partiesLoading}
+                                showSearch
+                                filterOption={(input, option) =>
+                                    String(option?.children ?? '').toLowerCase().includes(input.toLowerCase())
+                                }
                             >
-                                {mockPurchaseParties.map((party) => (
+                                {parties.map((party) => (
                                     <Select.Option key={party.id} value={party.id}>
                                         {party.name}
                                     </Select.Option>
@@ -127,38 +152,52 @@ const PurchaseLedger = () => {
             </Card>
 
             {viewMode === 'summary' ? (
-                <Card title="All Parties Summary">
-                    <Table
-                        dataSource={mockPurchaseLedgerSummary}
-                        columns={summaryColumns}
-                        rowKey="partyId"
-                        pagination={false}
-                    />
-                </Card>
+                summaryError ? (
+                    <Alert type="error" message="Failed to load ledger summary" showIcon />
+                ) : (
+                    <Card title="All Purchase Parties – Ledger Summary">
+                        <Spin spinning={summaryLoading}>
+                            <Table
+                                dataSource={summary}
+                                columns={summaryColumns}
+                                rowKey="partyId"
+                                pagination={false}
+                                locale={{ emptyText: 'No ledger data' }}
+                            />
+                        </Spin>
+                    </Card>
+                )
             ) : selectedPartyId ? (
-                <Card title={`Party Ledger - ${ledgerData.partyName}`}>
-                    <Table
-                        dataSource={ledgerData.transactions}
-                        columns={transactionColumns}
-                        pagination={false}
-                        footer={() => (
-                            <div style={{ textAlign: 'right', padding: '12px 0' }}>
-                                <div style={{ marginBottom: 8 }}>
-                                    <strong>Total Debit:</strong> {formatCurrency(ledgerData.totalDebit)}
-                                </div>
-                                <div style={{ marginBottom: 8 }}>
-                                    <strong>Total Credit:</strong> {formatCurrency(ledgerData.totalCredit)}
-                                </div>
-                                <div style={{ fontSize: 16 }}>
-                                    <strong>Closing Balance:</strong>{' '}
-                                    <span style={{ color: ledgerData.closingBalance > 0 ? '#ff4d4f' : '#52c41a' }}>
-                                        {formatCurrency(ledgerData.closingBalance)}
-                                    </span>
-                                </div>
-                            </div>
-                        )}
-                    />
-                </Card>
+                ledgerError ? (
+                    <Alert type="error" message="Failed to load party ledger" showIcon />
+                ) : (
+                    <Card title={partyLedger ? `Party Ledger – ${partyLedger.partyName}` : 'Loading...'}>
+                        <Spin spinning={ledgerLoading}>
+                            <Table
+                                dataSource={partyLedger?.transactions ?? []}
+                                columns={transactionColumns}
+                                rowKey={(r) => `${r.date}-${r.reference}`}
+                                pagination={false}
+                                footer={() => partyLedger ? (
+                                    <div style={{ textAlign: 'right', padding: '12px 0' }}>
+                                        <div style={{ marginBottom: 8 }}>
+                                            <strong>Total Debit:</strong> {formatCurrency(partyLedger.totalDebit)}
+                                        </div>
+                                        <div style={{ marginBottom: 8 }}>
+                                            <strong>Total Credit:</strong> {formatCurrency(partyLedger.totalCredit)}
+                                        </div>
+                                        <div style={{ fontSize: 16 }}>
+                                            <strong>Closing Balance:</strong>{' '}
+                                            <span style={{ color: partyLedger.closingBalance > 0 ? '#ff4d4f' : '#52c41a' }}>
+                                                {formatCurrency(partyLedger.closingBalance)}
+                                            </span>
+                                        </div>
+                                    </div>
+                                ) : null}
+                            />
+                        </Spin>
+                    </Card>
+                )
             ) : (
                 <Card>
                     <p style={{ textAlign: 'center', padding: '40px 0', color: '#888' }}>

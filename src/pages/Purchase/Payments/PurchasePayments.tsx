@@ -7,7 +7,6 @@ import PageHeader from '@/components/PageHeader';
 import { getPurchasePayments, createPurchasePayment, updatePurchasePayment, deletePurchasePayment, getPartyOutstanding } from '@/api/purchasePayments';
 import { getPurchaseParties } from '@/api/purchaseParties';
 import type { PurchasePaymentResponse, PurchasePaymentRequest } from '@/types';
-import { PaymentMode } from '@/types';
 import { formatCurrency, formatDate } from '@/utils/formatters';
 import { PAYMENT_MODE_LABELS } from '@/utils/constants';
 import { validateAmount } from '@/utils/validators';
@@ -32,13 +31,13 @@ const PurchasePayments = () => {
         queryFn: getPurchaseParties,
     });
 
-    // Fetch outstanding amount for selected party - always refetch when party changes
-    const { data: outstandingAmount, isLoading: isLoadingOutstanding, error: outstandingError, refetch: refetchOutstanding } = useQuery({
+    // Fetch outstanding amount for selected party — always fresh, no cache
+    const { data: outstandingAmount, isLoading: isLoadingOutstanding, error: outstandingError } = useQuery({
         queryKey: ['partyOutstanding', selectedPartyId],
         queryFn: () => getPartyOutstanding(selectedPartyId!),
-        enabled: !!selectedPartyId,
-        staleTime: 0, // Always fetch fresh data
-        gcTime: 0, // Don't cache (previously cacheTime)
+        enabled: !!selectedPartyId && !editingPayment,
+        staleTime: 0,
+        gcTime: 0,
     });
 
     // Create mutation
@@ -46,15 +45,13 @@ const PurchasePayments = () => {
         mutationFn: createPurchasePayment,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['purchasePayments'] });
-            queryClient.invalidateQueries({ queryKey: ['partyOutstanding'] });
             message.success('Payment recorded successfully');
             setIsModalOpen(false);
             form.resetFields();
             setSelectedPartyId(null);
         },
         onError: (error: any) => {
-            const errorMessage = error.response?.data?.message || error.message || 'Failed to record payment';
-            message.error(errorMessage);
+            message.error(error.response?.data?.message || error.message || 'Failed to record payment');
         },
     });
 
@@ -63,7 +60,6 @@ const PurchasePayments = () => {
         mutationFn: ({ id, data }: { id: number; data: PurchasePaymentRequest }) => updatePurchasePayment(id, data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['purchasePayments'] });
-            queryClient.invalidateQueries({ queryKey: ['partyOutstanding'] });
             message.success('Payment updated successfully');
             setIsModalOpen(false);
             form.resetFields();
@@ -71,8 +67,7 @@ const PurchasePayments = () => {
             setEditingPayment(null);
         },
         onError: (error: any) => {
-            const errorMessage = error.response?.data?.message || error.message || 'Failed to update payment';
-            message.error(errorMessage);
+            message.error(error.response?.data?.message || error.message || 'Failed to update payment');
         },
     });
 
@@ -81,12 +76,10 @@ const PurchasePayments = () => {
         mutationFn: deletePurchasePayment,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['purchasePayments'] });
-            queryClient.invalidateQueries({ queryKey: ['partyOutstanding'] });
             message.success('Payment deleted successfully');
         },
         onError: (error: any) => {
-            const errorMessage = error.response?.data?.message || error.message || 'Failed to delete payment';
-            message.error(errorMessage);
+            message.error(error.response?.data?.message || error.message || 'Failed to delete payment');
         },
     });
 
@@ -100,7 +93,7 @@ const PurchasePayments = () => {
 
     const handleEdit = (record: PurchasePaymentResponse) => {
         setEditingPayment(record);
-        setSelectedPartyId(record.partyId);
+        setSelectedPartyId(null); // don't show outstanding on edit
         form.setFieldsValue({
             partyId: record.partyId,
             paymentDate: dayjs(record.paymentDate),
@@ -118,10 +111,6 @@ const PurchasePayments = () => {
 
     const handlePartyChange = (partyId: number) => {
         setSelectedPartyId(partyId);
-        // Force refetch to get fresh outstanding amount
-        setTimeout(() => {
-            refetchOutstanding();
-        }, 100);
     };
 
     const handleOk = async () => {
@@ -160,7 +149,7 @@ const PurchasePayments = () => {
             title: 'Amount',
             dataIndex: 'amount',
             key: 'amount',
-            width: 120,
+            width: 130,
             align: 'right',
             render: (val: number) => <strong>{formatCurrency(val)}</strong>
         },
@@ -179,33 +168,17 @@ const PurchasePayments = () => {
             render: (ref: string | null) => ref || '-'
         },
         {
-            title: 'Outstanding After',
-            dataIndex: 'partyOutstandingAfterPayment',
-            key: 'partyOutstandingAfterPayment',
-            width: 150,
-            align: 'right',
-            render: (val: number) => (
-                <span style={{ color: val > 0 ? '#ff4d4f' : '#52c41a' }}>
-                    {formatCurrency(val)}
-                </span>
-            )
-        },
-        {
             title: 'Actions',
             key: 'actions',
             width: 150,
             render: (_: any, record: PurchasePaymentResponse) => (
                 <Space>
-                    <Button
-                        type="link"
-                        icon={<EditOutlined />}
-                        onClick={() => handleEdit(record)}
-                    >
+                    <Button type="link" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
                         Edit
                     </Button>
                     <Popconfirm
                         title="Delete Payment"
-                        description="Are you sure you want to delete this payment? Allocations will be removed."
+                        description="Are you sure you want to delete this payment?"
                         onConfirm={() => handleDelete(record.id)}
                         okText="Yes"
                         cancelText="No"
@@ -219,39 +192,6 @@ const PurchasePayments = () => {
         },
     ];
 
-    const expandedRowRender = (record: PurchasePaymentResponse) => {
-        const allocationColumns: ColumnsType<typeof record.allocations[0]> = [
-            { title: 'Bill Number', dataIndex: 'billNumber', key: 'billNumber' },
-            {
-                title: 'Amount Allocated',
-                dataIndex: 'amountAllocated',
-                key: 'amountAllocated',
-                align: 'right',
-                render: (val: number) => formatCurrency(val)
-            },
-        ];
-
-        return (
-            <div style={{ padding: '0 48px' }}>
-                <h4>Payment Allocations</h4>
-                {record.allocations.length > 0 ? (
-                    <Table
-                        columns={allocationColumns}
-                        dataSource={record.allocations}
-                        pagination={false}
-                        size="small"
-                        rowKey="billId"
-                    />
-                ) : (
-                    <p>No allocations</p>
-                )}
-                {record.remarks && (
-                    <p style={{ marginTop: 12 }}><strong>Remarks:</strong> {record.remarks}</p>
-                )}
-            </div>
-        );
-    };
-
     if (error) {
         return (
             <div>
@@ -263,11 +203,7 @@ const PurchasePayments = () => {
                         type="error"
                         showIcon
                     />
-                    <Button
-                        type="primary"
-                        style={{ marginTop: 16 }}
-                        onClick={() => queryClient.invalidateQueries({ queryKey: ['purchasePayments'] })}
-                    >
+                    <Button type="primary" style={{ marginTop: 16 }} onClick={() => queryClient.invalidateQueries({ queryKey: ['purchasePayments'] })}>
                         Retry
                     </Button>
                 </div>
@@ -292,8 +228,12 @@ const PurchasePayments = () => {
                     columns={columns}
                     rowKey="id"
                     expandable={{
-                        expandedRowRender,
-                        rowExpandable: (record) => record.allocations.length > 0 || !!record.remarks
+                        expandedRowRender: (record) => record.remarks ? (
+                            <div style={{ padding: '8px 48px' }}>
+                                <strong>Remarks:</strong> {record.remarks}
+                            </div>
+                        ) : null,
+                        rowExpandable: (record) => !!record.remarks,
                     }}
                     pagination={{ pageSize: 10, showTotal: (total) => `Total ${total} payments` }}
                 />
@@ -330,28 +270,23 @@ const PurchasePayments = () => {
                         </Select>
                     </Form.Item>
 
+                    {/* Show pending amount when creating (not editing) */}
                     {selectedPartyId && !editingPayment && (
                         <div style={{ marginBottom: 16 }}>
                             {isLoadingOutstanding ? (
                                 <div style={{ padding: 12, background: '#f0f2f5', borderRadius: 4, textAlign: 'center' }}>
-                                    <Spin size="small" /> Loading outstanding amount...
+                                    <Spin size="small" /> &nbsp;Loading outstanding...
                                 </div>
                             ) : outstandingError ? (
-                                <Alert
-                                    message="Error Loading Outstanding Amount"
-                                    description={outstandingError instanceof Error ? outstandingError.message : 'Failed to fetch outstanding amount'}
-                                    type="warning"
-                                    showIcon
-                                    closable
-                                />
-                            ) : (
+                                <Alert message="Could not load outstanding amount" type="warning" showIcon closable />
+                            ) : outstandingAmount != null ? (
                                 <div style={{ padding: 12, background: '#f0f2f5', borderRadius: 4 }}>
                                     <strong>Outstanding Amount:</strong>{' '}
                                     <span style={{ color: '#ff4d4f', fontSize: 16, fontWeight: 'bold' }}>
-                                        {formatCurrency(outstandingAmount || 0)}
+                                        {formatCurrency(outstandingAmount)}
                                     </span>
                                 </div>
-                            )}
+                            ) : null}
                         </div>
                     )}
 
@@ -374,7 +309,7 @@ const PurchasePayments = () => {
                             <InputNumber
                                 style={{ width: '100%' }}
                                 prefix="₹"
-                                min={0}
+                                min={0.01}
                                 placeholder={outstandingAmount && !editingPayment ? formatCurrency(outstandingAmount) : 'Enter amount'}
                             />
                         </Form.Item>
@@ -394,17 +329,11 @@ const PurchasePayments = () => {
                         </Select>
                     </Form.Item>
 
-                    <Form.Item
-                        name="transactionReference"
-                        label="Transaction Reference (Optional)"
-                    >
+                    <Form.Item name="transactionReference" label="Transaction Reference (Optional)">
                         <Input placeholder="Enter transaction reference" />
                     </Form.Item>
 
-                    <Form.Item
-                        name="remarks"
-                        label="Remarks (Optional)"
-                    >
+                    <Form.Item name="remarks" label="Remarks (Optional)">
                         <Input.TextArea rows={3} placeholder="Enter remarks" />
                     </Form.Item>
                 </Form>

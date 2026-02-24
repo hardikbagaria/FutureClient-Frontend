@@ -37,10 +37,11 @@ export const deletePurchasePayment = async (id: number): Promise<void> => {
 };
 
 /**
- * Get pending amount for a purchase party
+ * Get outstanding (closing balance) for a purchase party via the Ledger API.
+ * Falls back to 0 if the party has no ledger entries yet.
  */
 export const getPartyOutstanding = async (partyId: number): Promise<number> => {
-    const response = await apiClient.get<number>(`/purchase/payments/pending-amount/${partyId}`);
-    return response.data;
+    const response = await apiClient.get<{ closingBalance: number }>(`/ledger/purchase/party/${partyId}`);
+    return response.data.closingBalance ?? 0;
 };
 
