@@ -51,7 +51,7 @@ const SalesPayments = () => {
             setSelectedPartyId(null);
         },
         onError: (error: any) => {
-            const errorMessage = error.response?.data?.message || error.message || 'Failed to record payment';
+            const errorMessage = error.response?.data?.error || error.message || 'Failed to record payment';
             message.error(errorMessage);
         },
     });
@@ -68,7 +68,7 @@ const SalesPayments = () => {
             setSelectedPartyId(null);
         },
         onError: (error: any) => {
-            const errorMessage = error.response?.data?.message || error.message || 'Failed to update payment';
+            const errorMessage = error.response?.data?.error || error.message || 'Failed to update payment';
             message.error(errorMessage);
         },
     });
@@ -81,7 +81,7 @@ const SalesPayments = () => {
             message.success('Payment deleted successfully');
         },
         onError: (error: any) => {
-            const errorMessage = error.response?.data?.message || error.message || 'Failed to delete payment';
+            const errorMessage = error.response?.data?.error || error.message || 'Failed to delete payment';
             message.error(errorMessage);
         },
     });

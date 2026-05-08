@@ -21,12 +21,17 @@ export const validatePositiveNumber = (message: string = 'Value must be greater 
 });
 
 /**
- * Validates GST number format (15 alphanumeric characters)
+ * Validates GST number format.
+ * Pattern: 2 state digits + 5 uppercase letters + 4 digits + 1 letter + Z + 1 alphanumeric check digit
+ * Example: 27AAACR5055K1Z5
  */
 export const validateGST = (): Rule[] => [
     { required: true, message: 'Please enter GST number' },
-    { len: 15, message: 'GST number must be 15 characters' },
-    { pattern: /^[0-9]{2}[0-9A-Z]{13}$/, message: 'Must start with 2 numbers containing only uppercase letters and numbers' }
+    { len: 15, message: 'GST number must be exactly 15 characters' },
+    {
+        pattern: /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/,
+        message: 'Invalid GST format. Expected: 2 digits + 5 letters + 4 digits + 1 letter + check digit + Z + check digit (e.g. 27AAACR5055K1Z5)'
+    }
 ];
 
 /**

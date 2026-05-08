@@ -85,7 +85,7 @@ const PurchaseBills = () => {
             resetModal();
         },
         onError: (error: any) => {
-            message.error(error.response?.data?.message || 'Failed to create purchase bill');
+            message.error(error.response?.data?.error || 'Failed to create purchase bill');
         },
     });
 
@@ -97,7 +97,7 @@ const PurchaseBills = () => {
             resetModal();
         },
         onError: (error: any) => {
-            message.error(error.response?.data?.message || 'Failed to update purchase bill');
+            message.error(error.response?.data?.error || 'Failed to update purchase bill');
         },
     });
 
@@ -108,7 +108,7 @@ const PurchaseBills = () => {
             message.success('Purchase bill deleted successfully');
         },
         onError: (error: any) => {
-            message.error(error.response?.data?.message || 'Failed to delete purchase bill');
+            message.error(error.response?.data?.error || 'Failed to delete purchase bill');
         },
     });
 

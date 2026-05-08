@@ -25,6 +25,7 @@ const SalesParties = () => {
     // ── Party modal state ─────────────────────────────────────────────────────
     const [isPartyModalOpen, setIsPartyModalOpen] = useState(false);
     const [editingParty, setEditingParty] = useState<SalesPartyResponse | null>(null);
+    const [partyError, setPartyError] = useState<string | null>(null);
     const [partyForm] = Form.useForm();
 
     // ── Address modal state ───────────────────────────────────────────────────
@@ -67,11 +68,12 @@ const SalesParties = () => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['salesParties'] });
             message.success('Sales party created successfully');
+            setPartyError(null);
             setIsPartyModalOpen(false);
             partyForm.resetFields();
         },
         onError: (error: any) => {
-            message.error(error.response?.data?.message || 'Failed to create sales party');
+            setPartyError(error.response?.data?.error || 'Failed to create sales party');
         },
     });
 
@@ -80,11 +82,12 @@ const SalesParties = () => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['salesParties'] });
             message.success('Sales party updated successfully');
+            setPartyError(null);
             setIsPartyModalOpen(false);
             partyForm.resetFields();
         },
         onError: (error: any) => {
-            message.error(error.response?.data?.message || 'Failed to update sales party');
+            setPartyError(error.response?.data?.error || 'Failed to update sales party');
         },
     });
 
@@ -95,7 +98,7 @@ const SalesParties = () => {
             message.success('Sales party deleted successfully');
         },
         onError: (error: any) => {
-            message.error(error.response?.data?.message || 'Failed to delete sales party');
+            message.error(error.response?.data?.error || 'Failed to delete sales party');
         },
     });
 
@@ -109,7 +112,7 @@ const SalesParties = () => {
             addrForm.resetFields();
         },
         onError: (error: any) => {
-            message.error(error.response?.data?.message || 'Failed to add address');
+            message.error(error.response?.data?.error || 'Failed to add address');
         },
     });
 
@@ -123,7 +126,7 @@ const SalesParties = () => {
             addrForm.resetFields();
         },
         onError: (error: any) => {
-            message.error(error.response?.data?.message || 'Failed to update address');
+            message.error(error.response?.data?.error || 'Failed to update address');
         },
     });
 
@@ -135,7 +138,7 @@ const SalesParties = () => {
             message.success('Address deleted successfully');
         },
         onError: (error: any) => {
-            message.error(error.response?.data?.message || 'Cannot delete — address may be in use by an existing bill');
+            message.error(error.response?.data?.error || 'Cannot delete — address may be in use by an existing bill');
         },
     });
 
@@ -147,7 +150,7 @@ const SalesParties = () => {
             queryClient.invalidateQueries({ queryKey: ['salesPreviousBalance'] });
         },
         onError: (error: any) => {
-            message.error(error.response?.data?.message || 'Failed to save previous balance');
+            message.error(error.response?.data?.error || 'Failed to save previous balance');
         },
     });
 
@@ -159,7 +162,7 @@ const SalesParties = () => {
             queryClient.invalidateQueries({ queryKey: ['salesPreviousBalance'] });
         },
         onError: (error: any) => {
-            message.error(error.response?.data?.message || 'Failed to delete previous balance');
+            message.error(error.response?.data?.error || 'Failed to delete previous balance');
         },
     });
 
@@ -167,6 +170,7 @@ const SalesParties = () => {
 
     const handleAdd = () => {
         setEditingParty(null);
+        setPartyError(null);
         partyForm.resetFields();
         partyForm.setFieldsValue({ addresses: [{}] });
         setIsPartyModalOpen(true);
@@ -174,6 +178,7 @@ const SalesParties = () => {
 
     const handleEdit = (record: SalesPartyResponse) => {
         setEditingParty(record);
+        setPartyError(null);
         partyForm.setFieldsValue({
             name: record.name,
             gst: record.gst,
@@ -544,11 +549,21 @@ const SalesParties = () => {
                 title={editingParty ? 'Edit Sales Party' : 'Add New Sales Party'}
                 open={isPartyModalOpen}
                 onOk={handlePartyOk}
-                onCancel={() => setIsPartyModalOpen(false)}
+                onCancel={() => { setIsPartyModalOpen(false); setPartyError(null); }}
                 width={editingParty ? 600 : 800}
                 confirmLoading={createMutation.isPending || updateMutation.isPending}
             >
-                <Form form={partyForm} layout="vertical" style={{ marginTop: 24 }}>
+                {partyError && (
+                    <Alert
+                        message={partyError}
+                        type="error"
+                        showIcon
+                        closable
+                        onClose={() => setPartyError(null)}
+                        style={{ marginBottom: 16, marginTop: 8 }}
+                    />
+                )}
+                <Form form={partyForm} layout="vertical" style={{ marginTop: partyError ? 0 : 24 }}>
                     <Form.Item
                         name="name"
                         label="Party Name"

@@ -239,6 +239,16 @@ const InvoiceSheet = ({ bill, copy, items: rawItems }: { bill: SalesBillResponse
                     <div><b>MOBILE NO.</b> {SELLER.mobile}</div>
                     <div className="inv-buyer">
                         <div><b>Buyer: M/s. {bill.salesParty.name}</b></div>
+                        {sLines.length > 0 && (() => {
+                            const MAX = 4;
+                            const shown = sLines.slice(0, MAX);
+                            const extra = sLines.length - MAX;
+                            return (<>
+                                <div className="inv-alab">Shipping Address:</div>
+                                {shown.map((l, i) => <div key={i}>{l}</div>)}
+                                {extra > 0 && <div style={{ color: '#888', fontSize: 8 }}>+{extra} more</div>}
+                            </>);
+                        })()}
                         {bLines.length > 0 && (() => {
                             const MAX = 4;
                             const shown = bLines.slice(0, MAX);
@@ -252,16 +262,6 @@ const InvoiceSheet = ({ bill, copy, items: rawItems }: { bill: SalesBillResponse
                         {bill.salesParty.gst && <div><b>GSTIN/UIN:</b>&nbsp;{bill.salesParty.gst}</div>}
                         {pan && <div><b>PAN/IT:</b>&nbsp;{pan}</div>}
                         {bill.salesParty.phoneNumber && <div><b>Contact:</b>&nbsp;{bill.salesParty.phoneNumber}</div>}
-                        {sLines.length > 0 && (() => {
-                            const MAX = 4;
-                            const shown = sLines.slice(0, MAX);
-                            const extra = sLines.length - MAX;
-                            return (<>
-                                <div className="inv-alab">Shipping Address:</div>
-                                {shown.map((l, i) => <div key={i}>{l}</div>)}
-                                {extra > 0 && <div style={{ color: '#888', fontSize: 8 }}>+{extra} more</div>}
-                            </>);
-                        })()}
                     </div>
                 </div>
 
@@ -436,12 +436,15 @@ const InvoiceSheet = ({ bill, copy, items: rawItems }: { bill: SalesBillResponse
                 </tbody>
             </table>
 
-            {/* Footer */}
-            <table className="inv-ft">
-                <tbody>
-                    {/* Footer row 1: 3 cols (colSpan=2 for bank+tax, 3rd for QR/email) — matches row 2's 3 cells */}
-                    <tr>
-                        <td colSpan={2}>
+            {/* Footer — div-based so left and right columns are height-independent */}
+            <div style={{ width: '100%', border: '1px solid #000', borderTop: 'none', flexShrink: 0, fontSize: 10, display: 'flex', flexDirection: 'column' }}>
+                {/* Main content row: left+middle | right */}
+                <div style={{ display: 'flex', borderBottom: '1px solid #000' }}>
+
+                    {/* Left + Middle stacked */}
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                        {/* Row 1: Tax in words + Bank details */}
+                        <div style={{ padding: '4px 6px', borderBottom: '1px solid #000' }}>
                             <div><b>TAX AMOUNT (IN WORDS) :</b></div>
                             <div style={{ marginBottom: 2 }}>{numberToWords(bill.gst)}</div>
                             <div className="inv-bh">BANK DETAILS</div>
@@ -449,32 +452,36 @@ const InvoiceSheet = ({ bill, copy, items: rawItems }: { bill: SalesBillResponse
                             <div><span className="inv-bk">A/C No.</span>   : {BANK.ac}</div>
                             <div><span className="inv-bk">BRANCH</span>    : {BANK.branch}</div>
                             <div><span className="inv-bk">IFSC CODE</span> : {BANK.ifsc}</div>
-                        </td>
-                        <td style={{ textAlign: 'center', verticalAlign: 'top' }}>
+                        </div>
+                        {/* Row 2: Declaration | Receiver's Sign */}
+                        <div style={{ display: 'flex', flex: 1 }}>
+                            <div style={{ flex: 1, padding: '4px 6px', borderRight: '1px solid #000' }}>
+                                <div className="inv-dh">DECLARATION:</div>
+                                {DECL.map((l, i) => <div key={i} className="inv-dl">{l}</div>)}
+                            </div>
+                            <div style={{ flex: 1, padding: '4px 6px', textAlign: 'center' }}>
+                                <div className="inv-sh">RECEIVER'S SIGN</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Right: Email (thin) + Signature (fills rest) — fully independent height */}
+                    <div style={{ borderLeft: '1px solid #000', width: 200, display: 'flex', flexDirection: 'column' }}>
+                        {/* Email: 1-line box */}
+                        <div style={{ borderBottom: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>
                             <div style={{ fontWeight: 'bold', fontSize: 9 }}>EMAIL: {SELLER.email}</div>
-                            <div className="inv-qr">QR</div>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <div className="inv-dh">DECLARATION:</div>
-                            {DECL.map((l, i) => <div key={i} className="inv-dl">{l}</div>)}
-                        </td>
-                        <td style={{ textAlign: 'center' }}>
-                            <div className="inv-sh">RECEIVER'S SIGN</div>
-                            <div className="inv-ss" />
-                        </td>
-                        <td style={{ textAlign: 'center' }}>
+                        </div>
+                        {/* Signature: fills all remaining height */}
+                        <div style={{ flex: 1, padding: '4px 6px', textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                             <div className="inv-sh">FOR SURAJ ENTERPRISES</div>
-                            <div className="inv-ss" />
                             <div className="inv-sm">Proprietor/Authorised Sign</div>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td colSpan={3} className="inv-cgi">THIS IS A COMPUTER GENERATED INVOICE</td>
-                    </tr>
-                </tbody>
-            </table>
+                        </div>
+                    </div>
+
+                </div>
+                {/* Computer generated invoice row */}
+                <div className="inv-cgi" style={{ padding: '4px 6px' }}>THIS IS A COMPUTER GENERATED INVOICE</div>
+            </div>
         </div>
     );
 };

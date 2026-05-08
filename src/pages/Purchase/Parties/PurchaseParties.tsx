@@ -42,7 +42,7 @@ const PurchaseParties = () => {
             queryClient.invalidateQueries({ queryKey: ['purchasePreviousBalance'] });
         },
         onError: (error: any) => {
-            message.error(error.response?.data?.message || 'Failed to save previous balance');
+            message.error(error.response?.data?.error || 'Failed to save previous balance');
         },
     });
 
@@ -54,7 +54,7 @@ const PurchaseParties = () => {
             queryClient.invalidateQueries({ queryKey: ['purchasePreviousBalance'] });
         },
         onError: (error: any) => {
-            message.error(error.response?.data?.message || 'Failed to delete previous balance');
+            message.error(error.response?.data?.error || 'Failed to delete previous balance');
         },
     });
 
@@ -97,7 +97,7 @@ const PurchaseParties = () => {
             form.resetFields();
         },
         onError: (error: any) => {
-            message.error(error.response?.data?.message || 'Failed to create purchase party');
+            message.error(error.response?.data?.error || 'Failed to create purchase party');
         },
     });
 
@@ -111,7 +111,7 @@ const PurchaseParties = () => {
             form.resetFields();
         },
         onError: (error: any) => {
-            message.error(error.response?.data?.message || 'Failed to update purchase party');
+            message.error(error.response?.data?.error || 'Failed to update purchase party');
         },
     });
 
@@ -123,7 +123,7 @@ const PurchaseParties = () => {
             message.success('Purchase party deleted successfully');
         },
         onError: (error: any) => {
-            message.error(error.response?.data?.message || 'Failed to delete purchase party');
+            message.error(error.response?.data?.error || 'Failed to delete purchase party');
         },
     });
 

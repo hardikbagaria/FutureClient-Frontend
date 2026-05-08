@@ -131,7 +131,7 @@ const SalesBills = () => {
             resetModal();
         },
         onError: (error: any) => {
-            message.error(error.response?.data?.message || 'Failed to create sales bill');
+            message.error(error.response?.data?.error || 'Failed to create sales bill');
         },
     });
 
@@ -143,7 +143,7 @@ const SalesBills = () => {
             resetModal();
         },
         onError: (error: any) => {
-            message.error(error.response?.data?.message || 'Failed to update sales bill');
+            message.error(error.response?.data?.error || 'Failed to update sales bill');
         },
     });
 
@@ -154,7 +154,7 @@ const SalesBills = () => {
             message.success('Sales bill deleted successfully');
         },
         onError: (error: any) => {
-            message.error(error.response?.data?.message || 'Failed to delete sales bill');
+            message.error(error.response?.data?.error || 'Failed to delete sales bill');
         },
     });
 

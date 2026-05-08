@@ -33,7 +33,7 @@ const ItemsList = () => {
             form.resetFields();
         },
         onError: (error: any) => {
-            message.error(error.response?.data?.message || 'Failed to create item');
+            message.error(error.response?.data?.error || 'Failed to create item');
         },
     });
 
@@ -47,7 +47,7 @@ const ItemsList = () => {
             form.resetFields();
         },
         onError: (error: any) => {
-            message.error(error.response?.data?.message || 'Failed to update item');
+            message.error(error.response?.data?.error || 'Failed to update item');
         },
     });
 
@@ -59,7 +59,7 @@ const ItemsList = () => {
             message.success('Item deleted successfully');
         },
         onError: (error: any) => {
-            message.error(error.response?.data?.message || 'Failed to delete item');
+            message.error(error.response?.data?.error || 'Failed to delete item');
         },
     });
 
